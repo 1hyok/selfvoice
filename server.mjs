@@ -1,3 +1,4 @@
+import {auditDraft} from './audit.mjs';
 import http from 'node:http';
 import {readFile,writeFile,mkdir,rename,copyFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
@@ -43,9 +44,11 @@ const server=http.createServer(async(req,res)=>{
    if(aiBusy)return json(res,409,{error:'AI가 다른 작업을 처리하고 있습니다. 잠시 후 다시 시도해 주세요.'});
    const request=await body(req);if(!['analyze','write','revise','learn'].includes(request.mode))throw new Error('지원하지 않는 작업입니다.');
    if(request.mode==='learn'){const context=conversationContext(request);aiBusy=true;try{return json(res,200,conversationResult(await runAI(makePrompt('learn',context)),context));}finally{aiBusy=false;}}
+   for(const key of ['sourceIds','styleSourceIds'])if(request[key]!==undefined&&(!Array.isArray(request[key])||!request[key].every(x=>typeof x==='string')))throw new Error('자료 목록이 올바르지 않습니다.');
    let context=makeContext(state,request);
-   if(request.mode==='analyze'){if(!text(request.content).trim())throw new Error('분석할 글을 입력해 주세요.');context={...context,sources:[{id:'input',title:'분석할 글',facts:text(request.content),styleExample:request.usage==='both'?text(request.content):undefined,styleEvidence:request.usage==='both'?styleEvidence(text(request.content)):undefined}]};}
+   if(request.mode==='analyze'){if(!text(request.content).trim())throw new Error('분석할 글을 입력해 주세요.');context={...context,voices:[],preferences:[],draft:'',additionalFacts:'',question:'',company:'',role:'',instructions:'',sources:[{id:'input',title:'분석할 글',facts:text(request.content),styleExample:request.usage==='both'?text(request.content):undefined,styleEvidence:request.usage==='both'?styleEvidence(text(request.content)):undefined}]};}
    if(request.mode!=='analyze') {
+    if((request.styleSourceIds||[]).some(id=>!context.voices.some(s=>s.id===id)))throw new Error('말투 자료가 미확인 또는 사용 중지 상태입니다. 다시 선택해 주세요.');
     const rejected=(request.sourceIds||[]).filter(id=>!context.sources.some(s=>s.id===id));
     if(rejected.length)throw new Error('선택한 자료에 미확인 또는 정정이 필요한 원문이 있습니다. 참조용 자료를 다시 선택해 주세요.');
     const hits=findCorrections(context.draft+' '+context.additionalFacts,state.corrections);
@@ -53,7 +56,7 @@ const server=http.createServer(async(req,res)=>{
    }
    if(request.mode==='write'&&(!context.question.trim()||(!context.sources.length&&!context.additionalFacts.trim())))throw new Error('문항과 참고 경험을 입력해 주세요.');
    if(request.mode==='revise'&&!context.draft.trim())throw new Error('다듬을 초안을 입력해 주세요.');
-   aiBusy=true;try{const output=await runAI(makePrompt(request.mode,context));return json(res,200,verifyEvidence(request.mode==='analyze'?output:guardOutput(output,state.corrections),context));}finally{aiBusy=false;}
+   aiBusy=true;try{const output=await runAI(makePrompt(request.mode,context));if(request.mode==='analyze')return json(res,200,verifyEvidence(output,context));const reviewed=await auditDraft(output,context,runAI);return json(res,200,verifyEvidence(guardOutput(reviewed,state.corrections),context));}finally{aiBusy=false;}
   }
   if(req.method==='GET'&&['/','/app.js','/style.css','/favicon.svg'].includes(url.pathname)){
    const name=url.pathname==='/'?'index.html':url.pathname.slice(1);const data=await readFile(path.join(root,'public',name));res.writeHead(200,{'Content-Type':({'html':'text/html','js':'text/javascript','css':'text/css','svg':'image/svg+xml'})[name.split('.').pop()]+'; charset=utf-8','Cache-Control':'no-cache'});return res.end(data);

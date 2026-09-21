@@ -37,3 +37,11 @@ test('대화에서 사용자 발언만 근거로 인정하고 자동 저장하�
  const prompt=makePrompt('write',makeContext(state,{draftId:'d',company:'a',role:'b',question:'c'}));assert.ok(!prompt.includes(context.userCorrection));
  state.memories[0].provenance.quote='AI 발언';assert.throws(()=>validateState(state));
 });
+
+test('말투 자료를 경험과 독립 선택하며 그 경험은 사실 채널로 전송하지 않는다',()=>{
+ const s=emptyState();s.sources=[{id:'voice',status:'reference',usage:'both',title:'말투',content:'RAW_SECRET',facts:'VOICE_FACT_SECRET',example:'예문의 문장입니다.',style:'이유를 설명한다'},{id:'fact',status:'reference',usage:'facts',title:'경험',facts:'현재 경험',content:'RAW_FACT_SECRET'}];
+ const c=makeContext(s,{sourceIds:['fact'],styleSourceIds:['voice']});
+ assert.deepEqual(c.sources.map(x=>x.id),['fact']);assert.deepEqual(c.voices.map(x=>x.id),['voice']);assert.equal(c.voices[0].facts,undefined);assert.ok(!JSON.stringify(c).includes('SECRET'));
+ assert.equal(makeContext(s,{sourceIds:['voice'],styleSourceIds:[]}).voices.length,0);
+ s.sources[0].status='archive';assert.equal(makeContext(s,{styleSourceIds:['voice']}).voices.length,0);
+});

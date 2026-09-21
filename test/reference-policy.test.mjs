@@ -7,7 +7,7 @@ test('기존 백업은 원문 보관 전용으로 읽고 원문과 연결된 선
  assert.equal(s.sources[0].status,'archive');const c=makeContext(s,{sourceIds:['s1']});assert.equal(c.sources.length,0);assert.equal(c.preferences.length,0);assert.ok(!makePrompt('write',c).includes(old.content));
 });
 test('승인된 정리본과 별도 예문만 AI에 전달한다',()=>{
- const s=emptyState();s.sources=[source()];validateState(s);const c=makeContext(s,{sourceIds:['s1']});assert.equal(c.sources[0].facts,'검증된 행동');assert.equal(c.sources[0].styleExample,'확인했습니다.');assert.ok(!JSON.stringify(c).includes(s.sources[0].content));
+ const s=emptyState();s.sources=[source()];validateState(s);const c=makeContext(s,{sourceIds:['s1']});assert.equal(c.sources[0].facts,'검증된 행동');assert.equal(c.voices[0].styleExample,'확인했습니다.');assert.ok(!JSON.stringify(c).includes(s.sources[0].content));
  s.sources[0].status='archive';assert.equal(makeContext(s,{sourceIds:['s1']}).sources.length,0);
 });
 test('근거와 확인일 없는 참조 승격을 거절한다',()=>{
