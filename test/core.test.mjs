@@ -28,6 +28,7 @@ test('대화에서 사용자 발언만 근거로 인정하고 자동 저장하�
  const context=conversationContext({origin:'claude',userCorrection:'이번 문장만 나눠 줘.',assistantBefore:'모든 문장은 짧게'});
  const result={draft:'오염',facts:'오염',style:'모든 문장은 짧게',questions:[],evidence:[{sourceId:'assistant',quote:'모든 문장은 짧게',claim:'짧게'}]};
  assert.equal(conversationResult(result,context).style,'');
+ const noPreference=conversationResult({...result,questions:['직접 지적을 알려 주세요.','중복 질문']},context);assert.equal(noPreference.questions.length,1);
  result.evidence=[{sourceId:'user',quote:'없는 발언',claim:'짧게'}];assert.equal(conversationResult(result,context).style,'');
  result.style='이번 문장만 나눈다';result.evidence=[{sourceId:'user',quote:'이번 문장만',claim:'이번 글'}];
  const accepted=conversationResult(result,context);assert.equal(accepted.style,result.style);assert.equal(accepted.draft,'');
